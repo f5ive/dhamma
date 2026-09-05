@@ -65,7 +65,13 @@
     100%{opacity:0; transform:translate(-50%,-50%) scale(2.1)}
   }
   @media (prefers-reduced-motion:reduce){ .ring.go{animation:none} #gong{transition:none} }
-  .gong-hint{text-align:center; font-size:12px; color:var(--dim); margin-bottom:22px}
+  .gong-hint{text-align:center; font-size:12px; color:var(--dim); margin-bottom:14px}
+  .voices{display:flex; justify-content:center; gap:8px; margin-bottom:24px}
+  .voices button{
+    font:500 12.5px var(--sans); color:var(--dim); background:transparent;
+    border:1px solid var(--edge); border-radius:999px; padding:7px 14px; cursor:pointer;
+  }
+  .voices button.sel{color:var(--night); background:var(--gold); border-color:var(--gold); font-weight:600}
 
   /* Next bell */
   .next{
@@ -132,6 +138,7 @@
   <button id="gong" aria-label="Strike the gong"></button>
 </div>
 <p class="gong-hint">Tap the gong to hear it — this also enables sound</p>
+<div class="voices" id="voices" role="group" aria-label="Bell voice"></div>
 
 <section class="next" aria-live="polite">
   <div class="lbl">Next bell</div>
@@ -186,19 +193,51 @@ try { enabled = JSON.parse(localStorage.getItem("db.enabled") || "{}"); } catch(
 const isOn = e => enabled[key(e)] !== false;
 const save = () => localStorage.setItem("db.enabled", JSON.stringify(enabled));
 
+/* ---------- Gong voices ---------- */
+/* deep = slower tempo, lower pitch, long hall reverb (default) */
+const VOICES = {
+  deep:    {label:"Deep hall",    f0:148, decayX:1.7, wet:.65, dry:.85, gapTriple:2.4, gapWake:1.8},
+  classic: {label:"Classic",      f0:188, decayX:1.0, wet:.25, dry:1.0, gapTriple:1.4, gapWake:1.15},
+  bowl:    {label:"Singing bowl", f0:288, decayX:1.4, wet:.5,  dry:.9,  gapTriple:2.0, gapWake:1.5},
+};
+let voice = localStorage.getItem("db.voice") in VOICES ? localStorage.getItem("db.voice") : "deep";
+
 /* ---------- Gong: real recording if bell.mp3 exists, else bronze synthesis ---------- */
-let ctx, bellBuffer = null;
+let ctx, bellBuffer = null, reverb = null, wetGain = null, dryGain = null;
 function audio(){ ctx = ctx || new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==="suspended") ctx.resume(); return ctx; }
+
+function fx(){
+  const c = audio();
+  if (!reverb){
+    // generated hall impulse response: 6s stereo decaying noise
+    const len = Math.floor(c.sampleRate * 6);
+    const ir = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++){
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 2.6);
+    }
+    reverb = c.createConvolver(); reverb.buffer = ir;
+    dryGain = c.createGain(); wetGain = c.createGain();
+    dryGain.connect(c.destination);
+    wetGain.connect(reverb); reverb.connect(c.destination);
+  }
+  const v = VOICES[voice];
+  dryGain.gain.value = v.dry;
+  wetGain.gain.value = v.wet;
+}
 
 fetch("bell.mp3").then(r => r.ok ? r.arrayBuffer() : Promise.reject())
   .then(b => audio().decodeAudioData(b)).then(buf => bellBuffer = buf).catch(()=>{});
 
 function strike(when, gain=0.9){
   const c = audio(), t = when || c.currentTime;
+  fx();
+  const v = VOICES[voice];
+  const master = c.createGain(); master.gain.value = gain;
+  master.connect(dryGain); master.connect(wetGain);
   if (bellBuffer){
-    const s = c.createBufferSource(), g = c.createGain();
-    s.buffer = bellBuffer; g.gain.value = gain;
-    s.connect(g).connect(c.destination); s.start(t);
+    const s = c.createBufferSource();
+    s.buffer = bellBuffer; s.connect(master); s.start(t);
     return;
   }
   // Bronze gong: inharmonic partial set, detuned pairs for shimmer, long decay
@@ -207,35 +246,48 @@ function strike(when, gain=0.9){
     {r:2.09, g:.42, d:5.5}, {r:2.98, g:.30, d:4.5},
     {r:4.21, g:.18, d:3.2}, {r:5.44, g:.11, d:2.4}, {r:6.79, g:.06, d:1.8},
   ];
-  const f0 = 188;
-  const master = c.createGain(); master.gain.value = gain; master.connect(c.destination);
   for (const p of partials){
+    const dur = p.d * v.decayX;
     const o = c.createOscillator(), g = c.createGain();
-    o.type = "sine"; o.frequency.value = f0 * p.r;
+    o.type = "sine"; o.frequency.value = v.f0 * p.r;
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(0.22 * p.g, t + 0.012);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + p.d);
-    o.connect(g).connect(master); o.start(t); o.stop(t + p.d + .1);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t + dur + .1);
   }
   // strike transient
   const n = c.createBufferSource(), nb = c.createBuffer(1, c.sampleRate*0.06, c.sampleRate);
   const ch = nb.getChannelData(0); for(let i=0;i<ch.length;i++) ch[i] = (Math.random()*2-1)*(1-i/ch.length);
   n.buffer = nb;
-  const bp = c.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value = f0*3; bp.Q.value = 1.2;
+  const bp = c.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value = v.f0*3; bp.Q.value = 1.2;
   const ng = c.createGain(); ng.gain.setValueAtTime(.5, t); ng.gain.exponentialRampToValueAtTime(.0001, t+.06);
   n.connect(bp).connect(ng).connect(master); n.start(t);
 }
 function ring(pattern){
-  const c = audio(), t0 = c.currentTime + 0.05;
+  const c = audio(), t0 = c.currentTime + 0.05, v = VOICES[voice];
   if (pattern === "wake"){        // struck around the compound: 8 strikes, softening
-    for (let i=0;i<8;i++) strike(t0 + i*1.15, i<5 ? .9 : .9 - (i-4)*.15);
+    for (let i=0;i<8;i++) strike(t0 + i*v.gapWake, i<5 ? .9 : .9 - (i-4)*.15);
   } else if (pattern === "close"){
     strike(t0, .55);
   } else {                        // struck 3 times
-    for (let i=0;i<3;i++) strike(t0 + i*1.4, .9);
+    for (let i=0;i<3;i++) strike(t0 + i*v.gapTriple, .9);
   }
   ripple();
 }
+function renderVoices(){
+  const wrap = document.getElementById("voices"); wrap.innerHTML = "";
+  for (const k of Object.keys(VOICES)){
+    const b = document.createElement("button");
+    b.textContent = VOICES[k].label;
+    if (k === voice) b.className = "sel";
+    b.addEventListener("click", ()=>{
+      voice = k; localStorage.setItem("db.voice", k);
+      renderVoices(); strike();  // single strike preview
+    });
+    wrap.appendChild(b);
+  }
+}
+renderVoices();
 function ripple(){
   for (const id of ["ring1","ring2"]){
     const el = document.getElementById(id);
