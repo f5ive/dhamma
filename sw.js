@@ -1,4 +1,4 @@
-const CACHE = "dhammabell-v5";
+const CACHE = "dhammabell-v6";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon.svg", "favicon.ico"];
 
 self.addEventListener("install", e => {
