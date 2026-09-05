@@ -130,7 +130,8 @@
          color:var(--night);background:var(--gold);border:none;border-radius:999px;cursor:pointer">
   Install dhamma.bell</button>
 <p id="iosHint" hidden class="tip" style="text-align:center;margin:12px 0 0">
-  To install on iPhone: tap <strong>Share</strong> in Safari, then <strong>Add to Home Screen</strong>.</p>
+  To install on iPhone: tap <strong>Share</strong> in Safari, then <strong>Add to Home Screen</strong>.
+  <a href="#" id="iosDismiss" style="color:var(--gold);text-decoration:none;margin-left:6px">Got it</a></p>
 
 <div class="gong-wrap">
   <div class="ring" id="ring1"></div>
@@ -412,21 +413,29 @@ window.addEventListener("online", pushSync);
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
          || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const installDone = () => standalone || localStorage.getItem("db.installed") === "1";
+if (standalone) localStorage.setItem("db.installed", "1");
+function hideInstallUI(){ $("installBtn").hidden = true; $("iosHint").hidden = true; }
 let deferredInstall = null;
 window.addEventListener("beforeinstallprompt", e => {
   e.preventDefault();
   deferredInstall = e;
-  if (!standalone) $("installBtn").hidden = false;
+  if (!installDone()) $("installBtn").hidden = false;
 });
 $("installBtn").addEventListener("click", async () => {
   if (!deferredInstall) return;
   deferredInstall.prompt();
   await deferredInstall.userChoice;
   deferredInstall = null;
-  $("installBtn").hidden = true;
+  hideInstallUI();
 });
-window.addEventListener("appinstalled", () => { $("installBtn").hidden = true; });
-if (iOS && !standalone) $("iosHint").hidden = false;
+window.addEventListener("appinstalled", () => {
+  localStorage.setItem("db.installed", "1"); hideInstallUI();
+});
+if (iOS && !installDone()) $("iosHint").hidden = false;
+$("iosDismiss").addEventListener("click", e => {
+  e.preventDefault(); localStorage.setItem("db.installed", "1"); hideInstallUI();
+});
 
 /* ---------- Notifications permission ---------- */
 const nb = $("notifBtn");
