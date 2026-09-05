@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 76 400 400">
+  <defs>
+    <radialGradient id="night" cx="42%" cy="34%" r="90%">
+      <stop offset="0%" stop-color="#232f4d"/>
+      <stop offset="55%" stop-color="#141b2e"/>
+      <stop offset="100%" stop-color="#0a0e1a"/>
+    </radialGradient>
+    <radialGradient id="bronze" cx="38%" cy="32%" r="78%">
+      <stop offset="0%" stop-color="#ffd98f"/>
+      <stop offset="30%" stop-color="#e0a552"/>
+      <stop offset="62%" stop-color="#a8722c"/>
+      <stop offset="88%" stop-color="#6b4517"/>
+      <stop offset="100%" stop-color="#4a2f0f"/>
+    </radialGradient>
+    <radialGradient id="boss" cx="40%" cy="34%" r="75%">
+      <stop offset="0%" stop-color="#fff3d0"/>
+      <stop offset="55%" stop-color="#f0bf6b"/>
+      <stop offset="100%" stop-color="#8a5c22"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e5b368" stop-opacity=".55"/>
+      <stop offset="70%" stop-color="#e5b368" stop-opacity=".12"/>
+      <stop offset="100%" stop-color="#e5b368" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#night)"/>
+
+  <!-- pre-dawn stars -->
+  <g fill="#cdd6ea">
+    <circle cx="88" cy="84" r="2.2" opacity=".7"/>
+    <circle cx="150" cy="52" r="1.4" opacity=".45"/>
+    <circle cx="430" cy="96" r="1.8" opacity=".55"/>
+    <circle cx="388" cy="52" r="1.2" opacity=".4"/>
+    <circle cx="62" cy="180" r="1.3" opacity=".35"/>
+    <circle cx="452" cy="190" r="1.3" opacity=".35"/>
+  </g>
+
+  <!-- halo behind gong -->
+  <circle cx="232" cy="268" r="205" fill="url(#glow)"/>
+
+  <!-- sound arcs, rising to the right -->
+  <g fill="none" stroke="#e5b368" stroke-linecap="round">
+    <path d="M 372 168 A 142 142 0 0 1 372 368" stroke-width="13" opacity=".9"/>
+    <path d="M 408 138 A 184 184 0 0 1 408 398" stroke-width="10" opacity=".55"/>
+    <path d="M 442 110 A 224 224 0 0 1 442 426" stroke-width="8"  opacity=".3"/>
+  </g>
+
+  <!-- gong -->
+  <circle cx="232" cy="268" r="150" fill="url(#bronze)"/>
+  <circle cx="232" cy="268" r="150" fill="none" stroke="#2a1a06" stroke-width="9"/>
+  <circle cx="232" cy="268" r="128" fill="none" stroke="#3d2809" stroke-width="3" opacity=".6"/>
+  <circle cx="232" cy="268" r="96"  fill="none" stroke="#3d2809" stroke-width="2.5" opacity=".45"/>
+  <circle cx="232" cy="268" r="64"  fill="none" stroke="#502f0d" stroke-width="2" opacity=".4"/>
+
+  <!-- boss with glint -->
+  <circle cx="232" cy="268" r="40" fill="url(#boss)" stroke="#5c3a12" stroke-width="3"/>
+  <circle cx="220" cy="254" r="9" fill="#fffbe9" opacity=".85"/>
+</svg>
