@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>dhamma.bell</title>
+<meta name="description" content="Vipassana bell — the 10-day course timetable as gentle gong alarms on your phone.">
+<meta name="theme-color" content="#101623">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{
+    --night:#101623; --hall:#18202f; --edge:#242e42;
+    --ink:#eae5d6; --dim:#7e8698;
+    --bronze:#c08a3e; --gold:#e5b368;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{background:var(--night)}
+  body{
+    font-family:var(--sans); color:var(--ink); background:var(--night);
+    min-height:100vh; padding:calc(env(safe-area-inset-top) + 20px) 20px 48px;
+    max-width:430px; margin:0 auto; line-height:1.45;
+  }
+  header{text-align:center; margin-bottom:6px}
+  header h1{
+    font-family:var(--serif); font-weight:400; font-size:22px;
+    letter-spacing:.04em; color:var(--gold);
+  }
+  header p{font-size:12.5px; color:var(--dim); margin-top:2px}
+
+  /* The gong */
+  .gong-wrap{display:flex; justify-content:center; margin:26px 0 8px; position:relative}
+  #gong{
+    width:168px; height:168px; border-radius:50%; border:none; cursor:pointer;
+    background:
+      radial-gradient(circle at 38% 34%, #f0c87e 0%, var(--bronze) 34%, #8a5f26 72%, #5d3f18 100%);
+    box-shadow:
+      inset 0 0 0 7px rgba(0,0,0,.28),
+      inset 0 0 34px 8px rgba(60,38,10,.55),
+      0 10px 40px rgba(0,0,0,.55),
+      0 0 0 1px rgba(229,179,104,.18);
+    position:relative; transition:transform .12s ease;
+  }
+  #gong:active{transform:scale(.97)}
+  #gong::after{ /* boss */
+    content:""; position:absolute; inset:0; margin:auto; width:44px; height:44px;
+    border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, #ffe0a3, #b17f33 60%, #6e4c1c);
+    box-shadow:0 2px 8px rgba(0,0,0,.4);
+  }
+  .ring{
+    position:absolute; top:50%; left:50%; width:168px; height:168px;
+    border-radius:50%; border:1.5px solid var(--gold);
+    transform:translate(-50%,-50%); opacity:0; pointer-events:none;
+  }
+  .ring.go{animation:ripple 2.6s ease-out forwards}
+  @keyframes ripple{
+    0%{opacity:.55; transform:translate(-50%,-50%) scale(1)}
+    100%{opacity:0; transform:translate(-50%,-50%) scale(2.1)}
+  }
+  @media (prefers-reduced-motion:reduce){ .ring.go{animation:none} #gong{transition:none} }
+  .gong-hint{text-align:center; font-size:12px; color:var(--dim); margin-bottom:22px}
+
+  /* Next bell */
+  .next{
+    text-align:center; padding:18px 16px 20px; border-radius:14px;
+    background:var(--hall); border:1px solid var(--edge); margin-bottom:26px;
+  }
+  .next .lbl{font-size:12.5px; color:var(--dim)}
+  .next .when{
+    font-family:var(--serif); font-size:44px; line-height:1.1; margin:4px 0 2px; color:var(--ink);
+  }
+  .next .what{font-size:15px; color:var(--gold)}
+  .next .count{font-size:12.5px; color:var(--dim); margin-top:6px; font-variant-numeric:tabular-nums}
+
+  /* Notification banner */
+  #notifBtn{
+    display:block; width:100%; margin-bottom:26px; padding:12px;
+    font:600 14px var(--sans); color:var(--night); background:var(--gold);
+    border:none; border-radius:10px; cursor:pointer;
+  }
+  #notifBtn[hidden]{display:none}
+
+  /* Timetable */
+  h2{font-family:var(--serif); font-weight:400; font-size:17px; margin-bottom:10px; color:var(--ink)}
+  .day{border-left:2px solid var(--edge); padding-left:0}
+  .row{
+    display:flex; align-items:baseline; gap:14px; padding:9px 6px 9px 16px;
+    position:relative; cursor:pointer; border-radius:0 8px 8px 0;
+  }
+  .row::before{
+    content:""; position:absolute; left:-5px; top:50%; transform:translateY(-50%);
+    width:8px; height:8px; border-radius:50%; background:var(--edge);
+  }
+  .row.on::before{background:var(--bronze)}
+  .row.now{background:rgba(192,138,62,.10)}
+  .row.now::before{background:var(--gold); box-shadow:0 0 8px var(--gold)}
+  .row .t{
+    font-family:var(--serif); font-size:15px; width:74px; flex:none;
+    color:var(--ink); font-variant-numeric:tabular-nums;
+  }
+  .row .n{font-size:13.5px; color:var(--ink); flex:1}
+  .row:not(.on) .t, .row:not(.on) .n{color:var(--dim); text-decoration:line-through; text-decoration-color:rgba(126,134,152,.5)}
+  .row .b{font-size:11px; color:var(--dim); flex:none}
+  .tip{font-size:12px; color:var(--dim); margin:14px 2px 0}
+  footer{margin-top:34px; font-size:11.5px; color:var(--dim); text-align:center}
+  footer a{color:var(--dim)}
+</style>
+</head>
+<body>
+<header>
+  <h1>dhamma.bell</h1>
+  <p>The Vipassana course day, kept by the gong</p>
+</header>
+
+<div class="gong-wrap">
+  <div class="ring" id="ring1"></div>
+  <div class="ring" id="ring2"></div>
+  <button id="gong" aria-label="Strike the gong"></button>
+</div>
+<p class="gong-hint">Tap the gong to hear it — this also enables sound</p>
+
+<section class="next" aria-live="polite">
+  <div class="lbl">Next bell</div>
+  <div class="when" id="nextWhen">—</div>
+  <div class="what" id="nextWhat">loading</div>
+  <div class="count" id="nextCount"></div>
+</section>
+
+<button id="notifBtn" hidden>Allow notifications</button>
+<p class="tip" id="syncStatus" style="margin:-14px 2px 22px"></p>
+
+<h2>Daily timetable</h2>
+<div class="day" id="day"></div>
+<p class="tip">Tap a line to silence or restore its bell. Keep dhamma.bell open (or in a background tab) for the bells to sound on time — the web platform cannot wake a fully closed app.</p>
+
+<footer>Timetable of the 10-day course as taught by S.N. Goenka — <a href="https://www.dhamma.org" rel="noopener">dhamma.org</a></footer>
+
+<script>
+/* Set this to your FastAPI push service once deployed, e.g. "https://bell.yourdomain.com".
+   Leave empty for local-only mode — the app works fully offline either way. */
+const API_BASE = "";
+
+/* ---------- The course timetable (dhamma.org) ---------- */
+/* pattern: wake = long repeated striking, triple = struck 3 times, close = single soft strike */
+const EVENTS = [
+  {h:4,  m:0,  name:"Morning wake-up bell",        pattern:"wake"},
+  {h:4,  m:30, name:"Meditate — hall or room",     pattern:"triple"},
+  {h:6,  m:30, name:"Breakfast break",             pattern:"triple"},
+  {h:8,  m:0,  name:"Group meditation in the hall",pattern:"triple"},
+  {h:9,  m:0,  name:"Meditate as instructed",      pattern:"triple"},
+  {h:11, m:0,  name:"Lunch break",                 pattern:"triple"},
+  {h:12, m:0,  name:"Rest and teacher interviews", pattern:"triple"},
+  {h:13, m:0,  name:"Meditate — hall or room",     pattern:"triple"},
+  {h:14, m:30, name:"Group meditation in the hall",pattern:"triple"},
+  {h:15, m:30, name:"Meditate as instructed",      pattern:"triple"},
+  {h:17, m:0,  name:"Tea break",                   pattern:"triple"},
+  {h:18, m:0,  name:"Group meditation in the hall",pattern:"triple"},
+  {h:19, m:0,  name:"Discourse in the hall",       pattern:"triple"},
+  {h:20, m:15, name:"Group meditation in the hall",pattern:"triple"},
+  {h:21, m:0,  name:"Question time in the hall",   pattern:"triple"},
+  {h:21, m:30, name:"Lights out",                  pattern:"close"},
+];
+const key = e => String(e.h).padStart(2,"0")+":"+String(e.m).padStart(2,"0");
+const fmt = e => {
+  let h = e.h % 12 || 12, ap = e.h < 12 ? "am" : "pm";
+  return h + ":" + String(e.m).padStart(2,"0") + " " + ap;
+};
+
+/* ---------- Enabled state ---------- */
+let enabled = {};
+try { enabled = JSON.parse(localStorage.getItem("db.enabled") || "{}"); } catch(e){}
+const isOn = e => enabled[key(e)] !== false;
+const save = () => localStorage.setItem("db.enabled", JSON.stringify(enabled));
+
+/* ---------- Gong: real recording if bell.mp3 exists, else bronze synthesis ---------- */
+let ctx, bellBuffer = null;
+function audio(){ ctx = ctx || new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==="suspended") ctx.resume(); return ctx; }
+
+fetch("bell.mp3").then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+  .then(b => audio().decodeAudioData(b)).then(buf => bellBuffer = buf).catch(()=>{});
+
+function strike(when, gain=0.9){
+  const c = audio(), t = when || c.currentTime;
+  if (bellBuffer){
+    const s = c.createBufferSource(), g = c.createGain();
+    s.buffer = bellBuffer; g.gain.value = gain;
+    s.connect(g).connect(c.destination); s.start(t);
+    return;
+  }
+  // Bronze gong: inharmonic partial set, detuned pairs for shimmer, long decay
+  const partials = [
+    {r:1.00, g:1.00, d:7.5}, {r:1.006,g:.55, d:7.5},
+    {r:2.09, g:.42, d:5.5}, {r:2.98, g:.30, d:4.5},
+    {r:4.21, g:.18, d:3.2}, {r:5.44, g:.11, d:2.4}, {r:6.79, g:.06, d:1.8},
+  ];
+  const f0 = 188;
+  const master = c.createGain(); master.gain.value = gain; master.connect(c.destination);
+  for (const p of partials){
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = "sine"; o.frequency.value = f0 * p.r;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.22 * p.g, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + p.d);
+    o.connect(g).connect(master); o.start(t); o.stop(t + p.d + .1);
+  }
+  // strike transient
+  const n = c.createBufferSource(), nb = c.createBuffer(1, c.sampleRate*0.06, c.sampleRate);
+  const ch = nb.getChannelData(0); for(let i=0;i<ch.length;i++) ch[i] = (Math.random()*2-1)*(1-i/ch.length);
+  n.buffer = nb;
+  const bp = c.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value = f0*3; bp.Q.value = 1.2;
+  const ng = c.createGain(); ng.gain.setValueAtTime(.5, t); ng.gain.exponentialRampToValueAtTime(.0001, t+.06);
+  n.connect(bp).connect(ng).connect(master); n.start(t);
+}
+function ring(pattern){
+  const c = audio(), t0 = c.currentTime + 0.05;
+  if (pattern === "wake"){        // struck around the compound: 8 strikes, softening
+    for (let i=0;i<8;i++) strike(t0 + i*1.15, i<5 ? .9 : .9 - (i-4)*.15);
+  } else if (pattern === "close"){
+    strike(t0, .55);
+  } else {                        // struck 3 times
+    for (let i=0;i<3;i++) strike(t0 + i*1.4, .9);
+  }
+  ripple();
+}
+function ripple(){
+  for (const id of ["ring1","ring2"]){
+    const el = document.getElementById(id);
+    el.classList.remove("go"); void el.offsetWidth;
+    setTimeout(()=>el.classList.add("go"), id==="ring2"?300:0);
+  }
+}
+document.getElementById("gong").addEventListener("click", ()=>ring("triple"));
+
+/* ---------- Scheduler ---------- */
+let timer = null, swReg = null;
+
+function nextEvent(){
+  const now = new Date();
+  const list = EVENTS.filter(isOn);
+  if (!list.length) return null;
+  for (const e of list){
+    const d = new Date(now); d.setHours(e.h, e.m, 0, 0);
+    if (d > now) return {e, at:d};
+  }
+  const e = list[0], d = new Date(now);
+  d.setDate(d.getDate()+1); d.setHours(e.h, e.m, 0, 0);
+  return {e, at:d};
+}
+function arm(){
+  clearTimeout(timer);
+  const nx = nextEvent();
+  renderNext(nx);
+  if (!nx) return;
+  timer = setTimeout(()=>fire(nx.e), nx.at - Date.now());
+}
+function fire(e){
+  ring(e.pattern);
+  notify(e);
+  setTimeout(arm, 2000);
+  renderDay();
+}
+function notify(e){
+  if (Notification.permission !== "granted") return;
+  const opts = {
+    body: fmt(e) + " — the gong has sounded.",
+    icon: "icon-192.png", badge: "icon-192.png",
+    tag: "dhamma.bell", renotify: true, vibrate: [300,150,300,150,600],
+  };
+  if (swReg) swReg.showNotification(e.name, opts);
+  else try { new Notification(e.name, opts); } catch(_){}
+}
+
+/* ---------- Render ---------- */
+const $ = id => document.getElementById(id);
+function renderNext(nx){
+  if (!nx){ $("nextWhen").textContent="—"; $("nextWhat").textContent="all bells silenced"; $("nextCount").textContent=""; return; }
+  $("nextWhen").textContent = fmt(nx.e);
+  $("nextWhat").textContent = nx.e.name;
+}
+function tickCount(){
+  const nx = nextEvent();
+  if (!nx) return;
+  let s = Math.max(0, Math.floor((nx.at - Date.now())/1000));
+  const h = Math.floor(s/3600), m = Math.floor(s%3600/60), sec = s%60;
+  $("nextCount").textContent = "in " + (h? h+"h ":"") + m + "m " + sec + "s";
+}
+function currentIndex(){
+  const now = new Date(), mins = now.getHours()*60 + now.getMinutes();
+  let idx = -1;
+  EVENTS.forEach((e,i)=>{ if (e.h*60+e.m <= mins) idx = i; });
+  return idx;
+}
+function renderDay(){
+  const day = $("day"); day.innerHTML = "";
+  const cur = currentIndex();
+  EVENTS.forEach((e,i)=>{
+    const row = document.createElement("div");
+    row.className = "row" + (isOn(e)?" on":"") + (i===cur?" now":"");
+    row.setAttribute("role","button");
+    row.innerHTML = `<span class="t">${fmt(e)}</span><span class="n">${e.name}</span>` +
+      `<span class="b">${e.pattern==="wake"?"long bell":e.pattern==="close"?"one strike":"3 strikes"}</span>`;
+    row.addEventListener("click", ()=>{
+      enabled[key(e)] = !isOn(e); save(); renderDay(); arm(); pushSync();
+    });
+    day.appendChild(row);
+  });
+}
+
+/* ---------- Push sync (server reinforcement — optional, degrades to local-only) ---------- */
+function setSync(msg){ const el = $("syncStatus"); if (el) el.textContent = msg; }
+function b64ToU8(s){
+  const pad = "=".repeat((4 - s.length % 4) % 4);
+  const raw = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+async function pushSync(){
+  if (!API_BASE) { setSync(""); return; }
+  if (!navigator.onLine) { setSync("Offline — bells ring while the app is open. Will sync when back online."); return; }
+  try {
+    if (!swReg || !("pushManager" in swReg) || Notification.permission !== "granted") return;
+    let sub = await swReg.pushManager.getSubscription();
+    if (!sub){
+      const vk = await (await fetch(API_BASE + "/vapid-public-key")).json();
+      sub = await swReg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: b64ToU8(vk.key),
+      });
+    }
+    await fetch(API_BASE + "/subscribe", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        subscription: sub.toJSON(),
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        enabled: Object.fromEntries(EVENTS.map(e => [key(e), isOn(e)])),
+      }),
+    });
+    setSync("Synced — bells will also arrive as notifications when the app is closed.");
+  } catch (err) {
+    setSync("Server unreachable — running in local-only mode.");
+  }
+}
+window.addEventListener("online", pushSync);
+
+/* ---------- Notifications permission ---------- */
+const nb = $("notifBtn");
+function notifUI(){
+  nb.hidden = !("Notification" in window) || Notification.permission === "granted";
+}
+nb.addEventListener("click", async ()=>{ await Notification.requestPermission(); notifUI(); pushSync(); });
+
+/* ---------- Boot ---------- */
+if ("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").then(r => { swReg = r; pushSync(); }).catch(()=>{});
+}
+document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) arm(); });
+notifUI(); renderDay(); arm();
+setInterval(tickCount, 1000);
+setInterval(renderDay, 60000);
+</script>
+</body>
+</html>
