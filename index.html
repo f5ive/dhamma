@@ -7,8 +7,9 @@
 <meta name="description" content="Vipassana bell — the 10-day course timetable as gentle gong alarms on your phone.">
 <meta name="theme-color" content="#101623">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
@@ -117,6 +118,13 @@
   <h1>dhamma.bell</h1>
   <p>The Vipassana course day, kept by the gong</p>
 </header>
+
+<button id="installBtn" hidden
+  style="display:block;margin:14px auto 0;padding:10px 22px;font:600 14px var(--sans);
+         color:var(--night);background:var(--gold);border:none;border-radius:999px;cursor:pointer">
+  Install dhamma.bell</button>
+<p id="iosHint" hidden class="tip" style="text-align:center;margin:12px 0 0">
+  To install on iPhone: tap <strong>Share</strong> in Safari, then <strong>Add to Home Screen</strong>.</p>
 
 <div class="gong-wrap">
   <div class="ring" id="ring1"></div>
@@ -347,6 +355,26 @@ async function pushSync(){
   }
 }
 window.addEventListener("online", pushSync);
+
+/* ---------- Install prompt ---------- */
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+         || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+let deferredInstall = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredInstall = e;
+  if (!standalone) $("installBtn").hidden = false;
+});
+$("installBtn").addEventListener("click", async () => {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  await deferredInstall.userChoice;
+  deferredInstall = null;
+  $("installBtn").hidden = true;
+});
+window.addEventListener("appinstalled", () => { $("installBtn").hidden = true; });
+if (iOS && !standalone) $("iosHint").hidden = false;
 
 /* ---------- Notifications permission ---------- */
 const nb = $("notifBtn");
