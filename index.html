@@ -151,9 +151,22 @@
 <button id="notifBtn" hidden>Allow notifications</button>
 <p class="tip" id="syncStatus" style="margin:-14px 2px 22px"></p>
 
+<section class="next" style="margin-bottom:26px">
+  <div class="lbl">Sit — Adhiṭṭhāna timer</div>
+  <div class="when" id="sitTime" style="font-size:34px">1 hour</div>
+  <div class="voices" id="sitLens" style="margin:10px 0 12px"></div>
+  <button id="sitBtn"
+    style="padding:10px 26px;font:600 14px var(--sans);color:var(--night);background:var(--gold);
+           border:none;border-radius:999px;cursor:pointer">Begin</button>
+  <div class="count" id="sitStatus" style="margin-top:8px"></div>
+</section>
+
 <h2>Daily timetable</h2>
 <div class="day" id="day"></div>
 <p class="tip">Tap a line to silence or restore its bell. Keep dhamma.bell open (or in a background tab) for the bells to sound on time — the web platform cannot wake a fully closed app.</p>
+<div class="voices" style="margin-top:14px">
+  <button id="wakeBtn">Keep screen awake: off</button>
+</div>
 
 <footer>Timetable of the 10-day course as taught by S.N. Goenka — <a href="https://www.dhamma.org" rel="noopener">dhamma.org</a></footer>
 
@@ -436,6 +449,75 @@ if (iOS && !installDone()) $("iosHint").hidden = false;
 $("iosDismiss").addEventListener("click", e => {
   e.preventDefault(); localStorage.setItem("db.installed", "1"); hideInstallUI();
 });
+
+/* ---------- Sit timer (fully local) ---------- */
+const SIT_LENS = [15, 30, 45, 60];
+let sitLen = parseInt(localStorage.getItem("db.sitlen") || "60", 10);
+let sitEnd = null, sitTicker = null;
+function renderSitLens(){
+  const wrap = $("sitLens"); wrap.innerHTML = "";
+  for (const m of SIT_LENS){
+    const b = document.createElement("button");
+    b.textContent = m + "m";
+    if (m === sitLen) b.className = "sel";
+    b.addEventListener("click", ()=>{
+      if (sitEnd) return;
+      sitLen = m; localStorage.setItem("db.sitlen", String(m));
+      renderSitLens(); renderSitIdle();
+    });
+    wrap.appendChild(b);
+  }
+}
+function renderSitIdle(){
+  $("sitTime").textContent = sitLen === 60 ? "1 hour" : sitLen + " min";
+  $("sitBtn").textContent = "Begin"; $("sitStatus").textContent = "";
+}
+function sitTick(){
+  if (!sitEnd) return;
+  const s = Math.max(0, Math.floor((sitEnd - Date.now())/1000));
+  $("sitTime").textContent = String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0");
+  if (s <= 0) endSit(true);
+}
+function beginSit(){
+  sitEnd = Date.now() + sitLen*60000;
+  $("sitBtn").textContent = "End sit";
+  $("sitStatus").textContent = "Sitting — screen stays awake";
+  strike();                      // one strike to begin
+  holdWake(true);
+  sitTicker = setInterval(sitTick, 500); sitTick();
+}
+function endSit(complete){
+  clearInterval(sitTicker); sitTicker = null; sitEnd = null;
+  holdWake(false);
+  renderSitIdle();
+  if (complete){
+    ring("triple");
+    if (Notification.permission === "granted" && swReg)
+      swReg.showNotification("Sit complete", {body:"Bhavatu sabba mangalam.", icon:"icon-192.png", tag:"dhamma.sit"});
+    $("sitStatus").textContent = "Sit complete";
+  }
+}
+$("sitBtn").addEventListener("click", ()=> sitEnd ? endSit(false) : beginSit());
+renderSitLens(); renderSitIdle();
+
+/* ---------- Wake lock (bell reliability while open) ---------- */
+let wakeLock = null, wakeWanted = false, sitHold = false;
+async function acquireWake(){
+  try { wakeLock = await navigator.wakeLock.request("screen"); } catch(_) { wakeLock = null; }
+}
+function holdWake(on){ sitHold = on; applyWake(); }
+async function applyWake(){
+  const want = (wakeWanted || sitHold) && "wakeLock" in navigator;
+  if (want && !wakeLock) await acquireWake();
+  if (!want && wakeLock){ try{ wakeLock.release(); }catch(_){} wakeLock = null; }
+  $("wakeBtn").textContent = "Keep screen awake: " + (wakeWanted ? "on" : "off");
+  $("wakeBtn").className = wakeWanted ? "sel" : "";
+}
+$("wakeBtn").addEventListener("click", ()=>{ wakeWanted = !wakeWanted; applyWake(); });
+document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) applyWake(); });
+
+/* ---------- Persistent storage (prevent eviction of the app) ---------- */
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 
 /* ---------- Notifications permission ---------- */
 const nb = $("notifBtn");
